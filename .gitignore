@@ -1,0 +1,9 @@
+# Build output.
+bin/
+obj/
+*.user
+*.suo
+
+# The game's own DLLs, if kept here to build against. They belong to Iron
+# Gate.
+refs/

@@ -1,0 +1,13 @@
+# Text files are LF, except Doorstop's settings file, which keeps the CRLF
+# of the file it copies. DLLs are binary.
+
+* text=auto eol=lf
+
+*.cs       text eol=lf
+*.csproj   text eol=lf
+*.props    text eol=lf
+*.md       text eol=lf
+*.ini      text eol=crlf
+
+*.dll binary
+*.zip binary
