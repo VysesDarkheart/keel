@@ -403,8 +403,23 @@ releases, with seven changes:
 
 ## Credits and licences
 
-Keel is released under the MIT licence, which is in `LICENSE` and travels in
-every mod's zip as `Keel\Keel-LICENSE.txt`.
+Copyright 2026 VysesDarkheart. Keel is released under the Mozilla Public
+License 2.0, whose full text is in `LICENSE` and travels in every mod's zip as
+`Keel\Keel-LICENSE.txt`:
+
+> This Source Code Form is subject to the terms of the Mozilla Public
+> License, v. 2.0. If a copy of the MPL was not distributed with this file,
+> You can obtain one at https://mozilla.org/MPL/2.0/.
+
+That notice covers the files that make up Keel: everything in this folder
+and the folders below it, except `LICENSE` itself, which is Mozilla's text,
+and the files in `door`, which are Doorstop's. Keel 1.0.0 was released under
+the MIT licence.
+
+A mod built on Keel can have any licence of its own. When it ships Keel's
+files, it keeps Keel's licence with them and says where Keel's source is, as
+a link to this repository does. If it changes any of Keel's files, it makes
+those changed files available under the Mozilla Public License 2.0 too.
 
 Keel starts through [Unity Doorstop](https://github.com/NeighTools/UnityDoorstop),
 made by NeighTools and released under the GNU Lesser General Public License,
