@@ -1,19 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 namespace Keel
 {
     /// <summary>
-    /// Where Keel's starter comes in, when the mod was installed without
-    /// BepInEx. The starter finds this class and method by name, so neither
+    /// Where Keel comes in, when the mod was installed without BepInEx.
+    /// Every version of Keel finds this class and method by name, so neither
     /// the name nor Start's signature may ever change.
     /// </summary>
     internal static class Entry
     {
         /// <summary>
-        /// Starts the mod once, with its settings in its own folder. Returns
-        /// a sentence for Keel's log.
+        /// Starts the mod once, through Keel's core, with its settings in its
+        /// own folder. Returns a sentence for Keel's log.
         /// </summary>
         public static string Start(string folder)
         {
@@ -24,75 +24,57 @@ namespace Keel
                      + "[assembly: Keel.Main(...)], so it wasn't started.";
 
             Mod mod = (Mod)Activator.CreateInstance(main.Mod, true);
-            // The host is made before the mod is marked as started, so a
-            // host that fails leaves the way open for another copy.
-            Alone host = new Alone(mod, folder);
-            if (!Once.Claim(mod, "Keel")) return Once.StaysOff(mod);
+            string why, loaded;
+            IDictionary<string, object> core = Core.Find(folder, out why, out loaded);
+            if (core == null) return mod.Name + " " + mod.Version + " wasn't started, because " + why;
 
-            if (host.Seed != null)
-                host.Log.Info(mod.Name + " starts from the settings BepInEx kept in " + host.Seed
-                              + ", and keeps its own from now on, in " + host.Settings.FilePath + ".");
-            mod.Start(host);
-            // Every setting is bound now, so the file is written with all of
-            // them, whether or not any changed.
-            host.Settings.Save();
-            return mod.Name + " " + mod.Version + " started.";
+            // What the core may want to know about this copy of Keel.
+            Dictionary<string, object> about = new Dictionary<string, object>(StringComparer.Ordinal);
+            about["keel"] = Core.Version;
+
+            Func<string, string, string, string, IDictionary<string, object>, IDictionary<string, object>> start =
+                (Func<string, string, string, string, IDictionary<string, object>, IDictionary<string, object>>)core["start"];
+            IDictionary<string, object> state = start(mod.Id, mod.Name, mod.Version, folder, about);
+            object run, reason, done;
+            state.TryGetValue("run", out run);
+            if (!(run is bool) || !(bool)run)
+            {
+                state.TryGetValue("reason", out reason);
+                return (reason as string) ?? (mod.Name + " " + mod.Version + " stays off.");
+            }
+
+            mod.Start(new CoreHost(state));
+            state.TryGetValue("done", out done);
+            if (done is Action) ((Action)done)();
+            return mod.Name + " " + mod.Version + " started." + (loaded == null ? string.Empty : " " + loaded);
         }
     }
 
     /// <summary>
-    /// The host when Keel started the mod: settings in [Name].cfg in the
-    /// mod's own folder, and the game's own log.
+    /// The host when Keel started the mod. The settings file and the log are
+    /// the core's, so every Keel mod in a game keeps its settings the same
+    /// way, the way of the newest core there.
     /// </summary>
-    internal sealed class Alone : Host
+    internal sealed class CoreHost : Host
     {
+        private readonly string _starter;
         private readonly string _folder;
         private readonly Log _log;
+        private readonly Func<string, string, Type, object, string, object, Delegate[]> _bind;
+        private readonly Func<bool> _getSaving;
+        private readonly Action<bool> _setSaving;
 
-        internal Alone(Mod mod, string folder)
+        internal CoreHost(IDictionary<string, object> state)
         {
-            _folder = folder;
-            _log = new Log(Debug.Log, Debug.LogWarning);
-            string file = Path.Combine(folder, mod.Name + ".cfg");
-
-            // While the mod has no settings file of its own, the settings
-            // BepInEx kept for it in the same game folder are the starting
-            // point, so switching over keeps them. BepInEx's file is only
-            // read, never changed.
-            string seed = null;
-            if (!File.Exists(file))
-            {
-                string bepinex = Path.Combine(Path.Combine(Path.Combine(GameFolder(folder), "BepInEx"), "config"),
-                                              mod.Id + ".cfg");
-                if (File.Exists(bepinex)) seed = bepinex;
-            }
-
-            Seed = seed;
-            Settings = new SettingsFile(
-                file,
-                new[] { "Settings for " + mod.Name + " " + mod.Version, "Mod ID: " + mod.Id },
-                delegate (string message) { _log.Warn(mod.Name + ": " + message); },
-                seed);
+            _starter = (string)state["starter"];
+            _folder = (string)state["folder"];
+            _log = new Log((Action<string>)state["info"], (Action<string>)state["warn"]);
+            _bind = (Func<string, string, Type, object, string, object, Delegate[]>)state["bind"];
+            _getSaving = (Func<bool>)state["getSaving"];
+            _setSaving = (Action<bool>)state["setSaving"];
         }
 
-        internal SettingsFile Settings { get; }
-
-        /// <summary>BepInEx's settings file the settings were first read from, or null.</summary>
-        internal string Seed { get; }
-
-        /// <summary>
-        /// The game's folder: where Doorstop says the game is, or else two
-        /// folders up from the mod, which is where Keel's own layout puts it.
-        /// </summary>
-        private static string GameFolder(string folder)
-        {
-            string exe = Environment.GetEnvironmentVariable("DOORSTOP_PROCESS_PATH");
-            if (!string.IsNullOrEmpty(exe)) return Path.GetDirectoryName(Path.GetFullPath(exe)) ?? string.Empty;
-            string mod = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return Path.GetDirectoryName(Path.GetDirectoryName(mod) ?? string.Empty) ?? string.Empty;
-        }
-
-        internal override string Starter { get { return "Keel"; } }
+        internal override string Starter { get { return _starter; } }
 
         internal override string Folder
         {
@@ -107,37 +89,30 @@ namespace Keel
 
         internal override bool Saving
         {
-            get { return Settings.Saving; }
-            set { Settings.Saving = value; }
+            get { return _getSaving(); }
+            set { _setSaving(value); }
         }
 
         internal override Setting<T> Bind<T>(string section, string key, T fallback, string about)
         {
-            return Settings.Add(section, key, fallback, about, null, null);
+            return Wrap<T>(_bind(section, key, typeof(T), fallback, about, null));
         }
 
         internal override Setting<string> Bind(string section, string key, string fallback,
                                                string about, string[] allowed)
         {
-            if (allowed == null || allowed.Length == 0)
-                throw new ArgumentException("[" + section + "] " + key + " needs at least one allowed value.");
-            string[] list = (string[])allowed.Clone();
-            return Settings.Add(section, key, fallback, about,
-                                delegate (string v) { return Array.IndexOf(list, v) >= 0 ? v : list[0]; },
-                                SettingsFile.ListLimits(list));
+            return Wrap<string>(_bind(section, key, typeof(string), fallback, about, allowed ?? new string[0]));
         }
 
         internal override Setting<float> Bind(string section, string key, float fallback,
                                               string about, float min, float max)
         {
-            return Settings.Add(section, key, fallback, about,
-                                delegate (float v)
-                                {
-                                    if (min.CompareTo(v) > 0) return min;
-                                    if (max.CompareTo(v) < 0) return max;
-                                    return v;
-                                },
-                                SettingsFile.RangeLimits(min, max));
+            return Wrap<float>(_bind(section, key, typeof(float), fallback, about, new[] { min, max }));
+        }
+
+        private static Setting<T> Wrap<T>(Delegate[] made)
+        {
+            return new Setting<T>((Func<T>)made[0], (Action<T>)made[1]);
         }
     }
 }

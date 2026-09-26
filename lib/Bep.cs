@@ -68,7 +68,7 @@ namespace Keel
             {
                 // The same types as Keel's own file, so a mod behaves the same
                 // under either starter.
-                if (!Toml.Supports(typeof(T)))
+                if (!Types.Supported(typeof(T)))
                     throw new NotSupportedException("Keel can't keep a setting of type " + typeof(T).Name + ".");
                 ConfigEntry<T> entry = _config.Bind(section, key, fallback, about);
                 return new Setting<T>(delegate { return entry.Value; }, delegate (T v) { entry.Value = v; });

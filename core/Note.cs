@@ -5,25 +5,18 @@ using System.IO;
 namespace Keel
 {
     /// <summary>
-    /// Keel.log, beside Keel.dll: what the starter did the last time the game
-    /// ran. Each line is written as it happens, so a game that stops part way
-    /// still leaves it.
+    /// Keel.log, beside Keel.dll: what Keel did the last time the game ran.
+    /// The starter begins it afresh, and the core carries it on. Each line is
+    /// written as it happens, so a game that stops part way still leaves it.
     /// </summary>
     internal static class Note
     {
         private static string _path;
 
+        /// <summary>Carries on the Keel.log the starter began.</summary>
         internal static void Open(string path)
         {
-            try
-            {
-                File.WriteAllText(path, string.Empty);
-                _path = path;
-            }
-            catch (Exception)
-            {
-                _path = null;
-            }
+            _path = path;
         }
 
         internal static void Line(string text)

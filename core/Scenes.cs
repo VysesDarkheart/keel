@@ -5,8 +5,8 @@ using UnityEngine.SceneManagement;
 namespace Keel
 {
     /// <summary>
-    /// The part of Keel's starter that touches Unity. It's only reached once
-    /// Unity has loaded UnityEngine.CoreModule; see Loader.
+    /// The part of Loader that touches Unity. It's only reached once Unity
+    /// has loaded UnityEngine.CoreModule; see Loader.
     /// </summary>
     internal static class Scenes
     {

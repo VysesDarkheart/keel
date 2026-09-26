@@ -6,8 +6,8 @@ using UnityEngine;
 namespace Keel
 {
     /// <summary>
-    /// Setting values as text, written the way BepInEx writes them, so a
-    /// settings file reads the same whichever of the two wrote it.
+    /// Setting values as text, in BepInEx's format, so each of the two reads a
+    /// file the other wrote the way it reads its own.
     /// </summary>
     internal static class Toml
     {

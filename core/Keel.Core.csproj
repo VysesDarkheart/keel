@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Keel.Core.dll, Keel's shared core. It ships as
+       Keel\Keel.Core.<version>.dll, and the starter runs the newest one it
+       finds. RefDir is where the game's own assemblies are. They aren't
+       in this repository: put them in a refs folder beside it, or pass
+       -p:RefDir=... No NuGet packages, so a build needs no network. -->
+
+  <PropertyGroup>
+    <!-- The game's assemblies are built against netstandard 2.1. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Keel.Core</AssemblyName>
+    <RootNamespace>Keel</RootNamespace>
+    <!-- Keel's own version. The file it ships as is named after it. -->
+    <Version>2.0.0</Version>
+    <LangVersion>9.0</LangVersion>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- This runs inside a live game, before the game itself, so a warning
+         is treated as a bug. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <!-- No symbol file in a release build: a .pdb path would put the build
+         machine's folders into a DLL that gets shared. -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <Deterministic>true</Deterministic>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- The refs folder beside this repository, or beside the mod that
+         carries a copy of it in a keel folder. -->
+    <RefDir Condition="'$(RefDir)' == '' and Exists('$(MSBuildProjectDirectory)\..\..\refs')">$(MSBuildProjectDirectory)\..\..\refs</RefDir>
+    <RefDir Condition="'$(RefDir)' == ''">$(MSBuildProjectDirectory)\..\refs</RefDir>
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only Unity's core: the first scene, colours and the game's log.
+         Nothing from the game or BepInEx, so the core starts whatever
+         version of either is there. -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RefDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -9,8 +9,9 @@ namespace Keel
     internal abstract class Mod
     {
         /// <summary>
-        /// A name no other mod uses, such as com.example.mymod. BepInEx names
-        /// the settings file after it, and Keel uses it to start a mod once.
+        /// A name no other mod uses, such as com.example.mymod, and the GUID of
+        /// the mod's BepInEx plugin. BepInEx names the settings file after it,
+        /// and Keel uses it to start a mod once.
         /// </summary>
         internal abstract string Id { get; }
 

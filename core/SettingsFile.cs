@@ -22,6 +22,8 @@ namespace Keel
             internal string About;
             internal Type Type;
             internal string Limits;
+            /// <summary>What Add handed back for it, handed back again if it's bound twice.</summary>
+            internal Delegate[] Made;
 
             internal abstract string Text();
             internal abstract string FallbackText();
@@ -80,17 +82,28 @@ namespace Keel
             }
         }
 
-        internal Setting<T> Add<T>(string section, string key, T fallback, string about,
+        /// <summary>
+        /// Adds a setting and returns how to read and change it: a Func of T
+        /// and an Action of T, for the mod to wrap as its own Setting.
+        /// </summary>
+        internal Delegate[] Add<T>(string section, string key, T fallback, string about,
                                    Func<T, T> clamp, string limits)
         {
+            Name(section, "section");
+            Name(key, "key");
             Type type = typeof(T);
             if (!Toml.Supports(type))
                 throw new NotSupportedException("Keel can't keep a setting of type " + type.Name + ".");
             string id = Id(section, key);
             foreach (Row existing in _rows)
             {
-                if (Id(existing.Section, existing.Key) == id)
-                    throw new ArgumentException("[" + section + "] " + key + " is already a setting.");
+                if (Id(existing.Section, existing.Key) != id) continue;
+                // As BepInEx does: binding a setting again gives back the one
+                // that's there, and only a different type is refused.
+                if (existing.Type != type)
+                    throw new InvalidCastException("[" + section + "] " + key + " is already a setting of type "
+                                                   + existing.Type.Name + ", not " + type.Name + ".");
+                return existing.Made;
             }
 
             Row<T> row = new Row<T>();
@@ -116,7 +129,27 @@ namespace Keel
             }
             _rows.Add(row);
 
-            return new Setting<T>(delegate { return row.Value; }, delegate (T v) { Set(row, v); });
+            Func<T> get = delegate { return row.Value; };
+            Action<T> set = delegate (T v) { Set(row, v); };
+            row.Made = new Delegate[] { get, set };
+            return row.Made;
+        }
+
+        private static readonly char[] Refused = { '=', '\n', '\t', '\\', '"', '\'', '[', ']' };
+
+        /// <summary>
+        /// The section and key names BepInEx refuses, refused the same way, so
+        /// a mod behaves the same under either starter. A key that starts with
+        /// # passes, as it does in BepInEx, and reads back as a comment in both.
+        /// </summary>
+        private static void Name(string name, string what)
+        {
+            if (name == null) throw new ArgumentNullException(what);
+            if (name != name.Trim())
+                throw new ArgumentException("A setting's " + what + " can't start or end with a space: \"" + name + "\".", what);
+            if (name.IndexOfAny(Refused) >= 0)
+                throw new ArgumentException("A setting's " + what + " can't hold = \\ \" ' [ ], a tab or a line break: \""
+                                            + name + "\".", what);
         }
 
         private void Set<T>(Row<T> row, T value)
